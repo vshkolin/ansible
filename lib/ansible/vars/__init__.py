@@ -259,8 +259,6 @@ class VariableManager:
             except KeyError:
                 pass
 
-        all_vars['vars'] = all_vars.copy()
-
         if play:
             all_vars = combine_vars(all_vars, play.get_vars())
 
@@ -308,6 +306,7 @@ class VariableManager:
 
             if not C.DEFAULT_PRIVATE_ROLE_VARS:
                 for role in play.get_roles():
+                    all_vars = combine_vars(all_vars, role.get_role_params())
                     all_vars = combine_vars(all_vars, role.get_vars(include_params=False))
 
         if task:
@@ -342,6 +341,8 @@ class VariableManager:
             all_vars['ansible_delegated_vars'] = self._get_delegated_vars(loader, play, task, all_vars)
 
         #VARIABLE_CACHE[cache_entry] = all_vars
+        if task or play:
+            all_vars['vars'] = all_vars.copy()
 
         debug("done with get_vars()")
         return all_vars

@@ -62,19 +62,26 @@ class StrategyModule(StrategyBase):
         num_rescue = 0
         num_always = 0
 
-        lowest_cur_block = len(iterator._blocks)
-
         display.debug("counting tasks in each state of execution")
-        for (k, v) in iteritems(host_tasks):
-            if v is None:
-                continue
+        host_tasks_to_run = [(host, state_task)
+                             for host, state_task in iteritems(host_tasks)
+                             if state_task and state_task[1]]
 
+        if host_tasks_to_run:
+            lowest_cur_block = min(
+                (s.cur_block for h, (s, t) in host_tasks_to_run
+                if s.run_state != PlayIterator.ITERATING_COMPLETE))
+        else:
+            # empty host_tasks_to_run will just run till the end of the function
+            # without ever touching lowest_cur_block
+            lowest_cur_block = None
+
+        for (k, v) in host_tasks_to_run:
             (s, t) = v
-            if t is None:
-                continue
 
-            if s.cur_block < lowest_cur_block and s.run_state != PlayIterator.ITERATING_COMPLETE:
-                lowest_cur_block = s.cur_block
+            if s.cur_block > lowest_cur_block:
+                # Not the current block, ignore it
+                continue
 
             if s.run_state == PlayIterator.ITERATING_SETUP:
                 num_setups += 1
@@ -169,6 +176,7 @@ class StrategyModule(StrategyBase):
                 skip_rest   = False
                 choose_step = True
 
+                results = []
                 for (host, task) in host_tasks:
                     if not task:
                         continue
@@ -243,12 +251,14 @@ class StrategyModule(StrategyBase):
                     if run_once:
                         break
 
+                    results += self._process_pending_results(iterator, one_pass=True)
+
                 # go to next host/task group
                 if skip_rest:
                     continue
 
                 display.debug("done queuing things up, now waiting for results queue to drain")
-                results = self._wait_on_pending_results(iterator)
+                results += self._wait_on_pending_results(iterator)
                 host_results.extend(results)
 
                 if not work_to_do and len(iterator.get_failed_hosts()) > 0:
@@ -258,8 +268,14 @@ class StrategyModule(StrategyBase):
                     break
 
                 try:
-                    included_files = IncludedFile.process_include_results(host_results, self._tqm,
-                            iterator=iterator, loader=self._loader, variable_manager=self._variable_manager)
+                    included_files = IncludedFile.process_include_results(
+                        host_results,
+                        self._tqm,
+                        iterator=iterator,
+                        inventory=self._inventory,
+                        loader=self._loader,
+                        variable_manager=self._variable_manager
+                    )
                 except AnsibleError as e:
                     return False
 

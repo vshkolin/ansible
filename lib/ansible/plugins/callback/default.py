@@ -62,6 +62,7 @@ class CallbackModule(CallbackBase):
 
     def v2_runner_on_ok(self, result):
 
+        self._clean_results(result._result, result._task.action)
         delegated_vars = result._result.get('_ansible_delegated_vars', None)
         if result._task.action == 'include':
             return
@@ -134,7 +135,11 @@ class CallbackModule(CallbackBase):
         self._display.banner(msg)
 
     def v2_on_file_diff(self, result):
-        if 'diff' in result._result and result._result['diff']:
+        if result._task.loop and 'results' in result._result:
+            for res in result._result['results']:
+                if 'diff' in res:
+                    self._display.display(self._get_diff(res['diff']))
+        elif 'diff' in result._result and result._result['diff']:
             self._display.display(self._get_diff(result._result['diff']))
 
     def v2_playbook_item_on_ok(self, result):

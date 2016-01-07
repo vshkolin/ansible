@@ -2,6 +2,15 @@ Ansible Changes By Release
 ==========================
 
 ## 2.0 "Over the Hills and Far Away" - ACTIVE DEVELOPMENT
+## 2.1 TBD - ACTIVE DEVELOPMENT
+
+####New Modules:
+* cloudstack: cs_volume
+
+####New Filters:
+* extract
+
+## 2.0 "Over the Hills and Far Away"
 
 ###Major Changes:
 
@@ -24,14 +33,14 @@ Ansible Changes By Release
   by setting the `ANSIBLE_NULL_REPRESENTATION` environment variable.
 * Added `meta: refresh_inventory` to force rereading the inventory in a play.
   This re-executes inventory scripts, but does not force them to ignore any cache they might use.
-* Now when you delegate an action that returns ansible_facts, these facts will be applied to the delegated host, unlike before when they were applied to the current host.
+* New delegate_facts directive, a boolean that allows you to apply facts to the delegated host (true/yes) instead of the inventory_hostname (no/false) which is the default and previous behaviour.
 * local connections now work with 'su' as a privilege escalation method
 * New ssh configuration variables(`ansible_ssh_common_args`, `ansible_ssh_extra_args`) can be used to configure a
   per-group or per-host ssh ProxyCommand or set any other ssh options.
   `ansible_ssh_extra_args` is used to set options that are accepted only by ssh (not sftp or scp, which have their own analogous settings).
+* ansible-pull can now verify the code it runs when using git as a source repository, using git's code signing and verification features.
 * Backslashes used when specifying parameters in jinja2 expressions in YAML dicts sometimes needed to be escaped twice.
   This has been fixed so that escaping once works. Here's an example of how playbooks need to be modified:
-* ansible-pull can now verify the code it runs when using git as a source repository, using git's code signing and verification features.
 
     ```
     # Syntax in 1.9.x
@@ -73,9 +82,38 @@ newline being stripped you can change your playbook like this:
     "msg": "Testing some things"
     ```
 
+* When specifying complex args as a variable, the variable must use the full jinja2
+variable syntax ('{{var_name}}') - bare variable names there are no longer accepted.
+In fact, even specifying args with variables has been deprecated, and will not be
+allowed in future versions:
+
+    ```
+    ---
+    - hosts: localhost
+      connection: local
+      gather_facts: false
+      vars:
+        my_dirs:
+          - { path: /tmp/3a, state: directory, mode: 0755 }
+          - { path: /tmp/3b, state: directory, mode: 0700 }
+      tasks:
+        - file:
+          args: "{{item}}"
+          with_items: my_dirs
+    ```
+
+* The bigip\* networking modules have a new parameter, validate_certs.  When
+  True (the default) the module will validate any hosts it connects to against
+  the TLS certificates it presents when run on new enough python versions.  If
+  the python version is too old to validate certificates or you used certificates
+  that cannot be validated against available CAs you will need to add
+  validate_certs=no to your playbook for those tasks.
+
 ###Plugins
 
 * Rewritten dnf module that should be faster and less prone to encountering bugs in cornercases
+* WinRM connection plugin passes all vars named `ansible_winrm_*` to the underlying pywinrm client. This allows, for instance, `ansible_winrm_server_cert_validation=ignore` to be used with newer versions of pywinrm to disable certificate validation on Python 2.7.9+.
+* WinRM connection plugin put_file is significantly faster and no longer has file size limitations. 
 
 ####Deprecated Modules (new ones in parens):
 
@@ -339,11 +377,20 @@ newline being stripped you can change your playbook like this:
 * We do not ignore the explicitly set login user for ssh when it matches the 'current user' anymore, this allows overriding .ssh/config when it is set
   explicitly. Leaving it unset will still use the same user and respect .ssh/config. This also means ansible_ssh_user can now return a None value.
 * environment variables passed to remote shells now default to 'controller' settings, with fallback to en_us.UTF8 which was the previous default.
+* add_hosts is much stricter about host name and will prevent invalid names from being added.
+* ansible-pull now defaults to doing shallow checkouts with git, use `--full` to return to previous behaviour.
+* random cows are more random
+* when: now gets the registered var after the first iteration, making it possible to break out of item loops
 * Handling of undefined variables has changed.  In most places they will now raise an error instead of silently injecting an empty string.  Use the default filter if you want to approximate the old behaviour:
 
     ```
     - debug: msg="The error message was: {{error_code |default('') }}"
     ```
+
+* The yum module's detection of installed packages has been made more robust by
+  using /usr/bin/rpm in cases where it woud have used repoquery before.
+* The pip module now properly reports changes when packages are coming from a VCS.
+* Fixes for retrieving files over https when a CONNECT-only proxy is in the middle.
 
 ## 1.9.4 "Dancing In the Street" - Oct 9, 2015
 
