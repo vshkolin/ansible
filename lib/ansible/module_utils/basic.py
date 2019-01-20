@@ -2445,11 +2445,11 @@ class AnsibleModule(object):
             useorigext = 1     # use .orig as first-time backup ext
 
             if not os.path.exists(backupdir):
-                os.makedirs(backupdir, 0700)
-                
+                os.makedirs(backupdir, 0o700)
+
             backupdestdir = os.path.dirname('%s/%s' % (backupdir, fn))
             if not os.path.exists(backupdestdir):
-                os.makedirs(backupdestdir, 0700)
+                os.makedirs(backupdestdir, 0o700)
 
             backupext = "orig"
             backupdest = '%s/%s.%s%s' % (backupdir, fn, backupext, backupsuffix)
